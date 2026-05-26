@@ -24,6 +24,17 @@ except ImportError:
     def fix_empty_attr_tags(html_content):
         """Standalone fallback for optional empty-attribute cleanup helper."""
         return html_content
+
+
+def load_svg2png():
+    """Return CairoSVG's svg2png when the optional native Cairo stack works."""
+    try:
+        from importlib import import_module
+        return getattr(import_module("cairosvg"), "svg2png")
+    except Exception:
+        return None
+
+
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 
 # Import the lightweight compression worker for ProcessPoolExecutor.
@@ -1510,11 +1521,8 @@ class EPUBCompiler:
         
         # SVG rasterization settings
         self.rasterize_svg = os.getenv('RASTERIZE_SVG_FALLBACK', '1') == '1'
-        try:
-            import cairosvg  # noqa: F401
-            self._cairosvg_available = True
-        except Exception:
-            self._cairosvg_available = False
+        self._svg2png = load_svg2png() if self.rasterize_svg else None
+        self._cairosvg_available = self._svg2png is not None
         
         # Set global log callback
         set_global_log_callback(log_callback)
@@ -3894,7 +3902,9 @@ img {
                     # Special handling for SVG: rasterize to PNG fallback for reader compatibility
                     if ctype == 'image/svg+xml' and self.rasterize_svg and self._cairosvg_available:
                         try:
-                            from cairosvg import svg2png
+                            svg2png = self._svg2png
+                            if svg2png is None:
+                                raise RuntimeError("CairoSVG is not available")
                             png_name = os.path.splitext(safe_name)[0] + '.png'
                             png_path = os.path.join(self.images_dir, png_name)
                             # Generate PNG only if not already present
@@ -4460,7 +4470,9 @@ img {
             # 3) Convert remaining inline <svg> (complex vector art) to PNG data URIs if possible
             if self.rasterize_svg and self._cairosvg_available:
                 try:
-                    from cairosvg import svg2png
+                    svg2png = self._svg2png
+                    if svg2png is None:
+                        raise RuntimeError("CairoSVG is not available")
                     import base64
                     for svg_tag in soup.find_all('svg'):
                         try:
