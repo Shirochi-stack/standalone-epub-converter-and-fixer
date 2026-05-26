@@ -64,7 +64,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="EPUB_GUI",
+    name="EPUB Fixer and Converter",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -84,17 +84,17 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name="EPUB_GUI",
+    name="EPUB Fixer and Converter",
 )
 
 app = BUNDLE(
     coll,
-    name="EPUB_GUI.app",
+    name="EPUB Fixer and Converter.app",
     icon=None,
     bundle_identifier="com.shirochi.epubconverter",
     info_plist={
-        "CFBundleName": "Standalone EPUB Converter",
-        "CFBundleDisplayName": "Standalone EPUB Converter",
+        "CFBundleName": "EPUB Fixer and Converter",
+        "CFBundleDisplayName": "EPUB Fixer and Converter",
         "CFBundleShortVersionString": "1.0.0",
         "CFBundleVersion": "1.0.0",
         "NSHighResolutionCapable": True,

@@ -64,7 +64,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="EPUB_GUI",
+    name="EPUB Fixer and Converter",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

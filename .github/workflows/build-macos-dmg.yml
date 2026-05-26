@@ -19,10 +19,10 @@ jobs:
         include:
           - arch: arm64
             runner: macos-15
-            dmg_name: EPUB_GUI-macos-arm64.dmg
+            dmg_name: "EPUB Fixer and Converter-macos-arm64.dmg"
           - arch: intel
             runner: macos-15-intel
-            dmg_name: EPUB_GUI-macos-intel.dmg
+            dmg_name: "EPUB Fixer and Converter-macos-intel.dmg"
 
     steps:
       - name: Check out repository
@@ -42,16 +42,16 @@ jobs:
       - name: Build app bundle
         run: |
           pyinstaller --clean --noconfirm EPUB_GUI_mac.spec
-          test -d "dist/EPUB_GUI.app"
+          test -d "dist/EPUB Fixer and Converter.app"
 
       - name: Package DMG
         run: |
           rm -rf dmg-root
           mkdir -p dmg-root
-          ditto "dist/EPUB_GUI.app" "dmg-root/EPUB_GUI.app"
+          ditto "dist/EPUB Fixer and Converter.app" "dmg-root/EPUB Fixer and Converter.app"
           ln -s /Applications "dmg-root/Applications"
           hdiutil create \
-            -volname "Standalone EPUB Converter" \
+            -volname "EPUB Fixer and Converter" \
             -srcfolder dmg-root \
             -ov \
             -format UDZO \

@@ -57,7 +57,7 @@ Use the included build script:
 build_exe.bat
 ```
 
-The executable will be generated under `dist/`.
+The executable will be generated as `dist/EPUB Fixer and Converter.exe`.
 
 ## Notes
 

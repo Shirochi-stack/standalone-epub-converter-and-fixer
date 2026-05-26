@@ -17,7 +17,7 @@ where pyinstaller
 pyinstaller --version
 
 echo.
-echo Building EPUB_GUI.exe from EPUB_GUI.spec...
+echo Building "EPUB Fixer and Converter.exe" from EPUB_GUI.spec...
 pyinstaller --clean --noconfirm "%~dp0EPUB_GUI.spec"
 if errorlevel 1 (
     echo.
@@ -27,5 +27,5 @@ if errorlevel 1 (
 )
 
 echo.
-echo Build complete: "%~dp0dist\EPUB_GUI.exe"
+echo Build complete: "%~dp0dist\EPUB Fixer and Converter.exe"
 pause

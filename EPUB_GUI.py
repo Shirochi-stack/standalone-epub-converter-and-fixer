@@ -808,7 +808,7 @@ class ProcessJob(QRunnable):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Standalone EPUB Converter")
+        self.setWindowTitle("EPUB Fixer and Converter")
         self.resize(1420, 800)
         self.setMinimumSize(1180, 720)
         self.thread_pool = QThreadPool.globalInstance()
