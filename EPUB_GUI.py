@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -218,12 +219,24 @@ def unique_output_dir(path: Path) -> Path:
     return candidate
 
 
-def fix_output_dir(epub_path: Path, env: dict[str, str]) -> Path:
+def unique_file_path(path: Path) -> Path:
+    if not path.exists():
+        return path
+    stamp = time.strftime("%Y%m%d_%H%M%S")
+    candidate = path.with_name(f"{path.stem}_{stamp}{path.suffix}")
+    counter = 2
+    while candidate.exists():
+        candidate = path.with_name(f"{path.stem}_{stamp}_{counter}{path.suffix}")
+        counter += 1
+    return candidate
+
+
+def fixed_epub_output_path(epub_path: Path, env: dict[str, str]) -> Path:
     root = env.get("OUTPUT_DIRECTORY", "").strip()
-    leaf = f"{safe_leaf(epub_path.stem)}_recompiled"
+    leaf = f"{safe_leaf(epub_path.stem)}_fixed.epub"
     if root:
-        return unique_output_dir(Path(root).expanduser().resolve() / leaf)
-    return unique_output_dir(epub_path.parent / leaf)
+        return unique_file_path(Path(root).expanduser().resolve() / leaf)
+    return unique_file_path(epub_path.parent / leaf)
 
 
 def newest_epub(directory: Path) -> str:
@@ -339,17 +352,32 @@ def run_pipeline_job(config_path: str) -> int:
             if not epub_path.is_file() or epub_path.suffix.lower() != ".epub":
                 raise ValueError(f"Fix EPUB mode expects an .epub file: {input_path}")
 
-            output_dir = fix_output_dir(epub_path, env)
+            final_output = fixed_epub_output_path(epub_path, env)
+            final_output.parent.mkdir(parents=True, exist_ok=True)
             log_line(f"[JOB] Fix EPUB: {epub_path}")
-            log_line(f"[JOB] Extracting to: {output_dir}")
+            log_line(f"[JOB] Final EPUB: {final_output}")
             from chapter_extraction_worker import run_chapter_extraction
 
-            result = run_chapter_extraction(str(epub_path), str(output_dir))
-            if not result or not result.get("success"):
-                raise RuntimeError((result or {}).get("error", "Chapter extraction failed"))
+            with tempfile.TemporaryDirectory(prefix=f"{safe_leaf(epub_path.stem)}_fix_") as work_root:
+                output_dir = Path(work_root) / "extracted"
+                log_line(f"[JOB] Extracting to temporary workspace")
+                old_output_directory = os.environ.pop("OUTPUT_DIRECTORY", None)
+                try:
+                    result = run_chapter_extraction(str(epub_path), str(output_dir))
+                finally:
+                    if old_output_directory is not None:
+                        os.environ["OUTPUT_DIRECTORY"] = old_output_directory
+                if not result or not result.get("success"):
+                    raise RuntimeError((result or {}).get("error", "Chapter extraction failed"))
 
-            log_line(f"[JOB] Recompiling extracted folder: {output_dir}")
-            output_path = run_compile(output_dir)
+                log_line("[JOB] Recompiling temporary workspace")
+                compiled_path = Path(run_compile(output_dir)).resolve()
+                if not compiled_path.is_file():
+                    raise RuntimeError("Compilation finished without a movable EPUB file")
+                if final_output.exists():
+                    final_output = unique_file_path(final_output)
+                shutil.move(str(compiled_path), str(final_output))
+                output_path = str(final_output)
         elif mode == "convert":
             folder = Path(input_path)
             if not folder.is_dir():

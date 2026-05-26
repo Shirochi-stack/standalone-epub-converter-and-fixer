@@ -410,7 +410,7 @@ def _fallback_extract_epub(epub_path, output_dir, progress_callback=None):
             source_name = _safe_filename(zip_path, f'chapter_{number:04d}.html')
             if not source_name.lower().endswith(('.html', '.htm', '.xhtml')):
                 source_name += '.html'
-            out_name = _unique_name(used_docs, f"response_{source_name}")
+            out_name = _unique_name(used_docs, source_name)
             out_path = os.path.join(output_dir, out_name)
             with open(out_path, 'w', encoding='utf-8') as f:
                 f.write(content)
