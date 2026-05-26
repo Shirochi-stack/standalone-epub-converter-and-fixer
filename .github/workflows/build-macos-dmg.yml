@@ -1,0 +1,79 @@
+name: Build macOS DMGs
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    name: Build macOS ${{ matrix.arch }} DMG
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+            dmg_name: EPUB_GUI-macos-arm64.dmg
+          - arch: intel
+            runner: macos-15-intel
+            dmg_name: EPUB_GUI-macos-intel.dmg
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Build app bundle
+        run: |
+          pyinstaller --clean --noconfirm EPUB_GUI_mac.spec
+          test -d "dist/EPUB_GUI.app"
+
+      - name: Package DMG
+        run: |
+          rm -rf dmg-root
+          mkdir -p dmg-root
+          ditto "dist/EPUB_GUI.app" "dmg-root/EPUB_GUI.app"
+          ln -s /Applications "dmg-root/Applications"
+          hdiutil create \
+            -volname "Standalone EPUB Converter" \
+            -srcfolder dmg-root \
+            -ov \
+            -format UDZO \
+            "${{ matrix.dmg_name }}"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.dmg_name }}
+          path: ${{ matrix.dmg_name }}
+          if-no-files-found: error
+
+      - name: Upload DMG to latest release if one exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DMG_NAME: ${{ matrix.dmg_name }}
+        run: |
+          latest_tag="$(gh release view --json tagName --jq '.tagName' 2>/dev/null || true)"
+          if [ -z "$latest_tag" ]; then
+            echo "No GitHub release found. Skipping release upload."
+            exit 0
+          fi
+
+          echo "Uploading ${DMG_NAME} to latest release: ${latest_tag}"
+          gh release upload "$latest_tag" "$DMG_NAME" --clobber

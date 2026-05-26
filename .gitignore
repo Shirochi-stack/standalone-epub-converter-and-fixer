@@ -24,6 +24,7 @@ dist/
 *.zip
 *.7z
 *.rar
+*.dmg
 
 # Logs and temporary files
 *.log
