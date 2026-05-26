@@ -1,0 +1,10 @@
+PySide6
+ebooklib
+beautifulsoup4
+lxml
+Pillow
+CairoSVG
+tinycss2
+cssselect2
+html5lib
+pyinstaller
