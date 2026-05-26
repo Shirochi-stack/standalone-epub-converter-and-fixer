@@ -101,7 +101,7 @@ ENV_DISPLAY_LABELS = {
 ENV_TOOLTIPS = {
     "EPUB_LAYOUT_MODE": "Choose EPUB folder/output style. Auto detects EPUB2 OEBPS/Text vs EPUB3 flat OEBPS from the source when possible.",
     "FORCE_NCX_ONLY": "Write NCX navigation only for compatibility with older readers. Recommended for broad EPUB reader support.",
-    "OUTPUT_DIRECTORY": "Optional root folder for generated output. Leave disabled to write next to each input.",
+    "OUTPUT_DIRECTORY": "Optional root folder for generated output. Leave disabled to write to the executable/app folder.",
     "ATTACH_CSS_TO_CHAPTERS": "Inject stylesheet links into chapter XHTML files. Enable if your reader ignores manifest-only CSS.",
     "EPUB_CSS_OVERRIDE_PATH": "Optional CSS file to use instead of the built-in/default extracted styles.",
     "FONTCONFIG_FILE": "Optional Fontconfig config file used by CairoSVG when rasterizing SVG assets with custom fonts.",
@@ -126,6 +126,37 @@ def runtime_base_dir() -> Path:
     if getattr(sys, "frozen", False) and hasattr(sys, "executable"):
         return Path(sys.executable).resolve().parent
     return SCRIPT_DIR
+
+
+def executable_root_dir() -> Path:
+    if getattr(sys, "frozen", False) and hasattr(sys, "executable"):
+        executable = Path(sys.executable).resolve()
+        if sys.platform == "darwin":
+            for parent in (executable, *executable.parents):
+                if parent.suffix.lower() == ".app":
+                    return parent.parent
+        return executable.parent
+    return SCRIPT_DIR
+
+
+def is_writable_dir(path: Path) -> bool:
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        probe = path / f".epub_gui_write_test_{os.getpid()}"
+        probe.write_text("", encoding="utf-8")
+        probe.unlink(missing_ok=True)
+        return True
+    except OSError:
+        return False
+
+
+def default_output_root() -> Path:
+    root = executable_root_dir()
+    if is_writable_dir(root):
+        return root
+    fallback = Path.home() / "Documents" / "EPUB Fixer and Converter"
+    fallback.mkdir(parents=True, exist_ok=True)
+    return fallback
 
 
 def config_path() -> Path:
@@ -207,18 +238,6 @@ def safe_leaf(name: str) -> str:
     return cleaned or "book"
 
 
-def unique_output_dir(path: Path) -> Path:
-    if not path.exists() or not any(path.iterdir()):
-        return path
-    stamp = time.strftime("%Y%m%d_%H%M%S")
-    candidate = path.with_name(f"{path.name}_{stamp}")
-    counter = 2
-    while candidate.exists():
-        candidate = path.with_name(f"{path.name}_{stamp}_{counter}")
-        counter += 1
-    return candidate
-
-
 def unique_file_path(path: Path) -> Path:
     if not path.exists():
         return path
@@ -231,12 +250,26 @@ def unique_file_path(path: Path) -> Path:
     return candidate
 
 
-def fixed_epub_output_path(epub_path: Path, env: dict[str, str]) -> Path:
+def effective_output_root(env: dict[str, str]) -> Path:
     root = env.get("OUTPUT_DIRECTORY", "").strip()
-    leaf = epub_path.name
     if root:
-        return unique_file_path(Path(root).expanduser().resolve() / "Fixed" / leaf)
-    return unique_file_path(epub_path.parent / "Fixed" / leaf)
+        return Path(root).expanduser().resolve()
+    return default_output_root()
+
+
+def fixed_epub_output_path(epub_path: Path, env: dict[str, str]) -> Path:
+    return unique_file_path(effective_output_root(env) / "Fixed" / epub_path.name)
+
+
+def move_epub_to_output_root(compiled_path: Path, env: dict[str, str]) -> str:
+    root = effective_output_root(env)
+    root.mkdir(parents=True, exist_ok=True)
+    target = root / compiled_path.name
+    if compiled_path.resolve() == target.resolve():
+        return str(compiled_path)
+    target = unique_file_path(target)
+    shutil.move(str(compiled_path), str(target))
+    return str(target)
 
 
 def newest_epub(directory: Path) -> str:
@@ -273,14 +306,6 @@ def find_standard_epub_opf(folder: Path) -> Path | None:
 
 def is_standard_epub_folder(folder: Path) -> bool:
     return folder.is_dir() and find_standard_epub_opf(folder) is not None
-
-
-def normalized_folder_output_dir(folder: Path, env: dict[str, str]) -> Path:
-    root = env.get("OUTPUT_DIRECTORY", "").strip()
-    leaf = f"{safe_leaf(folder.name)}_normalized"
-    if root:
-        return unique_output_dir(Path(root).expanduser().resolve() / leaf)
-    return unique_output_dir(folder.parent / leaf)
 
 
 def zip_epub_folder(folder: Path) -> str:
@@ -387,21 +412,28 @@ def run_pipeline_job(config_path: str) -> int:
 
                 temp_epub = ""
                 try:
-                    output_dir = normalized_folder_output_dir(folder, env)
-                    temp_epub = zip_epub_folder(folder)
-                    os.environ["EPUB_PATH"] = temp_epub
-                    log_line(f"[JOB] Convert standard EPUB folder: {folder}")
-                    log_line(f"[JOB] Normalizing OEBPS/OPF structure to: {output_dir}")
-                    result = run_chapter_extraction(temp_epub, str(output_dir))
-                    if not result or not result.get("success"):
-                        raise RuntimeError((result or {}).get("error", "EPUB folder normalization failed"))
-                    try:
-                        with open(output_dir / "source_epub.txt", "w", encoding="utf-8") as f:
-                            f.write(str(folder))
-                    except OSError:
-                        pass
-                    log_line(f"[JOB] Compiling normalized folder: {output_dir}")
-                    output_path = run_compile(output_dir)
+                    with tempfile.TemporaryDirectory(prefix=f"{safe_leaf(folder.name)}_normalize_") as work_root:
+                        output_dir = Path(work_root) / "normalized"
+                        temp_epub = zip_epub_folder(folder)
+                        os.environ["EPUB_PATH"] = temp_epub
+                        log_line(f"[JOB] Convert standard EPUB folder: {folder}")
+                        log_line("[JOB] Normalizing OEBPS/OPF structure in temporary workspace")
+                        old_output_directory = os.environ.pop("OUTPUT_DIRECTORY", None)
+                        try:
+                            result = run_chapter_extraction(temp_epub, str(output_dir))
+                        finally:
+                            if old_output_directory is not None:
+                                os.environ["OUTPUT_DIRECTORY"] = old_output_directory
+                        if not result or not result.get("success"):
+                            raise RuntimeError((result or {}).get("error", "EPUB folder normalization failed"))
+                        try:
+                            with open(output_dir / "source_epub.txt", "w", encoding="utf-8") as f:
+                                f.write(str(folder))
+                        except OSError:
+                            pass
+                        log_line("[JOB] Compiling normalized folder")
+                        compiled_path = Path(run_compile(output_dir)).resolve()
+                        output_path = move_epub_to_output_root(compiled_path, env)
                 finally:
                     if temp_epub:
                         try:
@@ -410,7 +442,8 @@ def run_pipeline_job(config_path: str) -> int:
                             pass
             else:
                 log_line(f"[JOB] Convert folder: {folder}")
-                output_path = run_compile(folder)
+                compiled_path = Path(run_compile(folder)).resolve()
+                output_path = move_epub_to_output_root(compiled_path, env)
         else:
             raise ValueError(f"Unknown mode: {mode}")
 
@@ -1048,7 +1081,7 @@ class MainWindow(QMainWindow):
             self.input_list.takeItem(self.input_list.row(item))
 
     def choose_output_root(self) -> None:
-        path = QFileDialog.getExistingDirectory(self, "Select output root", str(SCRIPT_DIR))
+        path = QFileDialog.getExistingDirectory(self, "Select output root", str(default_output_root()))
         if path:
             self.env_panel.set_output_directory(path)
 

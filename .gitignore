@@ -35,6 +35,7 @@ dist/
 
 # EPUB processing outputs
 Fixed/
+*.epub
 *_recompiled/
 *_normalized/
 *.epub_folder_*
