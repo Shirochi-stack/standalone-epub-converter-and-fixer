@@ -261,10 +261,10 @@ def fixed_epub_output_path(epub_path: Path, env: dict[str, str]) -> Path:
     return unique_file_path(effective_output_root(env) / "Fixed" / epub_path.name)
 
 
-def move_epub_to_output_root(compiled_path: Path, env: dict[str, str]) -> str:
-    root = effective_output_root(env)
-    root.mkdir(parents=True, exist_ok=True)
-    target = root / compiled_path.name
+def move_converted_epub_to_output(compiled_path: Path, env: dict[str, str]) -> str:
+    target_dir = effective_output_root(env) / "Converted"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / compiled_path.name
     if compiled_path.resolve() == target.resolve():
         return str(compiled_path)
     target = unique_file_path(target)
@@ -433,7 +433,7 @@ def run_pipeline_job(config_path: str) -> int:
                             pass
                         log_line("[JOB] Compiling normalized folder")
                         compiled_path = Path(run_compile(output_dir)).resolve()
-                        output_path = move_epub_to_output_root(compiled_path, env)
+                        output_path = move_converted_epub_to_output(compiled_path, env)
                 finally:
                     if temp_epub:
                         try:
@@ -443,7 +443,7 @@ def run_pipeline_job(config_path: str) -> int:
             else:
                 log_line(f"[JOB] Convert folder: {folder}")
                 compiled_path = Path(run_compile(folder)).resolve()
-                output_path = move_epub_to_output_root(compiled_path, env)
+                output_path = move_converted_epub_to_output(compiled_path, env)
         else:
             raise ValueError(f"Unknown mode: {mode}")
 
