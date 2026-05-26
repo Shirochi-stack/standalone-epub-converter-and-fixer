@@ -34,6 +34,7 @@ dist/
 *.swp
 
 # EPUB processing outputs
+Fixed/
 *_recompiled/
 *_normalized/
 *.epub_folder_*

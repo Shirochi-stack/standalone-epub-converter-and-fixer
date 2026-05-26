@@ -233,10 +233,10 @@ def unique_file_path(path: Path) -> Path:
 
 def fixed_epub_output_path(epub_path: Path, env: dict[str, str]) -> Path:
     root = env.get("OUTPUT_DIRECTORY", "").strip()
-    leaf = f"{safe_leaf(epub_path.stem)}_fixed.epub"
+    leaf = epub_path.name
     if root:
-        return unique_file_path(Path(root).expanduser().resolve() / leaf)
-    return unique_file_path(epub_path.parent / leaf)
+        return unique_file_path(Path(root).expanduser().resolve() / "Fixed" / leaf)
+    return unique_file_path(epub_path.parent / "Fixed" / leaf)
 
 
 def newest_epub(directory: Path) -> str:
