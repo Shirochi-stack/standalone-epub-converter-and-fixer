@@ -4,7 +4,10 @@ cd /d "%~dp0"
 
 set "PY_CMD=python"
 where py >nul 2>nul
-if not errorlevel 1 set "PY_CMD=py -3"
+if not errorlevel 1 (
+    py -3.12 --version >nul 2>nul
+    if not errorlevel 1 set "PY_CMD=py -3.12"
+)
 
 %PY_CMD% -c "import PySide6, ebooklib, bs4, lxml, PIL" >nul 2>nul
 if errorlevel 1 (

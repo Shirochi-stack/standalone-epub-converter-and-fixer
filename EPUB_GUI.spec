@@ -22,7 +22,6 @@ hiddenimports = [
     "bs4",
     "lxml",
     "PIL",
-    "cairosvg",
 ]
 
 for package in (
@@ -31,7 +30,6 @@ for package in (
     "bs4",
     "lxml",
     "PIL",
-    "cairosvg",
     "tinycss2",
     "cssselect2",
     "html5lib",
@@ -52,7 +50,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=["cairosvg", "cairocffi"],
     noarchive=False,
     optimize=0,
 )

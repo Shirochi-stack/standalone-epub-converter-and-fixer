@@ -4,7 +4,13 @@ cd /d "%~dp0"
 
 set "PY_CMD=python"
 where py >nul 2>nul
-if not errorlevel 1 set "PY_CMD=py -3"
+if not errorlevel 1 (
+    py -3.12 --version >nul 2>nul
+    if not errorlevel 1 set "PY_CMD=py -3.12"
+)
+
+echo Using Python command: %PY_CMD%
+%PY_CMD% --version
 
 echo Installing build requirements...
 %PY_CMD% -m pip install -r "%~dp0requirements.txt"
