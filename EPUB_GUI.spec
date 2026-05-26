@@ -22,10 +22,12 @@ hiddenimports = [
     "bs4",
     "lxml",
     "PIL",
+    "PySide6.QtCore",
+    "PySide6.QtGui",
+    "PySide6.QtWidgets",
 ]
 
 for package in (
-    "PySide6",
     "ebooklib",
     "bs4",
     "lxml",
@@ -50,7 +52,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=["cairosvg", "cairocffi"],
+    excludes=["cairosvg", "cairocffi", "PySide6.scripts"],
     noarchive=False,
     optimize=0,
 )
