@@ -781,7 +781,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Standalone EPUB Converter")
-        self.resize(1180, 760)
+        self.resize(1420, 800)
+        self.setMinimumSize(1180, 720)
         self.thread_pool = QThreadPool.globalInstance()
         self.active_processes: dict[str, subprocess.Popen] = {}
         self.total_jobs = 0
@@ -888,12 +889,15 @@ class MainWindow(QMainWindow):
         self.env_panel = EnvPanel()
         env_frame = QFrame()
         env_frame.setFrameShape(QFrame.StyledPanel)
+        env_frame.setMinimumWidth(560)
         env_layout = QVBoxLayout(env_frame)
         env_layout.addWidget(self.env_panel)
 
         splitter.addWidget(left)
         splitter.addWidget(env_frame)
-        splitter.setSizes([720, 440])
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
+        splitter.setSizes([760, 620])
 
         self.fix_radio.toggled.connect(self.update_mode_ui)
         self.fix_radio.toggled.connect(lambda *_: self.schedule_config_save())
