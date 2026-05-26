@@ -910,9 +910,11 @@ class MainWindow(QMainWindow):
         log_layout = QVBoxLayout(log_box)
         self.log_view = QTextEdit()
         self.log_view.setReadOnly(True)
-        self.log_view.setLineWrapMode(QTextEdit.NoWrap)
+        self.log_view.setLineWrapMode(QTextEdit.WidgetWidth)
+        self.log_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.log_view.setMinimumHeight(220)
         log_layout.addWidget(self.log_view)
-        left_layout.addWidget(log_box, 4)
+        left_layout.addWidget(log_box, 6)
 
         self.env_panel = EnvPanel()
         env_frame = QFrame()
